@@ -1,0 +1,152 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Go-zero + Vue + OpenResty Monorepo 架构",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [1080, 578],
+    "views": [
+      {
+        "id": "request-path",
+        "label": "请求链路",
+        "focus": ["spa", "gateway", "userapi"],
+        "note": "一次 /api 请求从 Vue SPA 经网关限流、JWT 验签后到达 go-zero 服务。"
+      },
+      {
+        "id": "dynamic-route",
+        "label": "动态路由",
+        "focus": ["gateway", "redis", "userapi"],
+        "note": "Redis 路由表热更新 upstream,5s 缓存过期后生效,无需重载 Nginx。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "spa",
+      "type": "frontend",
+      "label": "Vue 3 SPA",
+      "sublabel": "apps/web · api-client",
+      "brand": "vue",
+      "pos": [60, 220],
+      "size": [160, 76]
+    },
+    {
+      "id": "vite",
+      "type": "frontend",
+      "label": "Vite Dev Server",
+      "sublabel": ":5173 · 热更新",
+      "pos": [60, 420],
+      "size": [160, 76]
+    },
+    {
+      "id": "gateway",
+      "type": "security",
+      "label": "OpenResty 网关",
+      "sublabel": ":8080 · 限流 / JWT / 路由",
+      "pos": [360, 220],
+      "size": [200, 100]
+    },
+    {
+      "id": "userapi",
+      "type": "backend",
+      "label": "go-zero user-api",
+      "sublabel": ":8888 · handler / logic",
+      "pos": [700, 220],
+      "size": [200, 100]
+    },
+    {
+      "id": "redis",
+      "type": "database",
+      "label": "Redis",
+      "sublabel": "hash gateway:routes",
+      "brand": "redis",
+      "pos": [360, 440],
+      "size": [170, 76]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "apps/web",
+      "wraps": ["spa", "vite"]
+    },
+    {
+      "kind": "region",
+      "label": "podman compose 网络",
+      "wraps": ["gateway", "userapi", "redis"]
+    }
+  ],
+  "connections": [
+    {
+      "id": "spa-api",
+      "from": "spa",
+      "to": "gateway",
+      "label": "/api/* · Bearer JWT",
+      "variant": "emphasis",
+      "labelAt": [244, 198]
+    },
+    {
+      "id": "gateway-static",
+      "from": "gateway",
+      "to": "spa",
+      "label": "静态资源 · try_files 兜底",
+      "labelDy": 70
+    },
+    {
+      "id": "vite-proxy",
+      "from": "vite",
+      "to": "gateway",
+      "label": "proxy /api → :8080",
+      "variant": "dashed",
+      "toSide": "bottom",
+      "labelDy": -24
+    },
+    {
+      "id": "gateway-userapi",
+      "from": "gateway",
+      "to": "userapi",
+      "label": "proxy_pass · rewrite 剥离 /api",
+      "variant": "emphasis",
+      "labelDy": -44
+    },
+    {
+      "id": "gateway-redis",
+      "from": "gateway",
+      "to": "redis",
+      "label": "HGET 路由表 · 5s TTL",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "请求链路",
+      "items": [
+        "SPA → 网关 :8080 → user-api :8888",
+        "限流 10 req/s + burst 20 → JWT 验签 → 动态路由",
+        "网关注入 X-User,后端信任该请求头"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "契约先行",
+      "items": [
+        "user.api 是接口唯一事实源",
+        "goctl 生成 Go handler/logic 与 TS 类型",
+        "logic 层重新生成时不被覆盖"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "实测结果",
+      "items": [
+        "60 并发:21×200 + 39×429",
+        "user-api 重启后 6s 内自愈",
+        "Redis 路由切换 5s 生效,无需重载"
+      ]
+    }
+  ]
+}

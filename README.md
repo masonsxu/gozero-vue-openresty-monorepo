@@ -9,6 +9,8 @@ Go-zero + Vue 3 + OpenResty 的 Monorepo 工程模板:契约先行的前后端�
 
 ## 架构
 
+交互版架构图（主题切换、聚焦视图、PNG/SVG 导出）：[docs/architecture.html](docs/architecture.html)（规格源文件 [docs/architecture.json](docs/architecture.json)）
+
 ```text
 浏览器
   │

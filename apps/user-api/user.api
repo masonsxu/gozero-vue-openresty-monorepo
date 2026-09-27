@@ -1,0 +1,39 @@
+syntax = "v1"
+
+info (
+	title:   "user-api"
+	desc:    "User service: login issues JWT, gateway verifies it before proxying"
+	author:  "masonsxu"
+	version: "1.0.0"
+)
+
+type (
+	// Login request with demo credentials managed in etc/user-api.yaml
+	LoginReq {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+	LoginResp {
+		Token     string `json:"token"`
+		ExpiresIn int64  `json:"expiresIn"`
+	}
+	UserInfoReq  {}
+	UserInfoResp {
+		Id       int64  `json:"id"`
+		Username string `json:"username"`
+		Email    string `json:"email"`
+	}
+)
+
+// The gateway strips the /api prefix, so routes are defined without it.
+service user-api {
+	@handler login
+	post /auth/login (LoginReq) returns (LoginResp)
+
+	@handler ping
+	get /user/ping
+
+	@handler userInfo
+	get /user/info (UserInfoReq) returns (UserInfoResp)
+}
+

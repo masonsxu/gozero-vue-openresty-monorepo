@@ -1,0 +1,67 @@
+worker_processes auto;
+# container-friendly: logs to stderr/stdout for `podman logs`
+error_log /dev/stderr warn;
+pid /tmp/openresty.pid;
+
+# Expose these to Lua via os.getenv()
+env JWT_SECRET;
+env REDIS_HOST;
+env USER_API_UPSTREAM;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+    access_log    /dev/stdout;
+    sendfile      on;
+    keepalive_timeout 65;
+
+    # custom lua modules + vendored pure-lua libraries under lualib
+    # modules are required as "lua.<name>" relative to the nginx prefix
+    lua_package_path "/usr/local/openresty/nginx/?.lua;/usr/local/openresty/lualib/?.lua;;";
+
+    # Resolved per-request with the TTL below, so backend container
+    # restarts (new IPs) recover without an nginx reload. The address is
+    # injected at container start from /etc/resolv.conf by the entrypoint.
+    resolver __DNS_RESOLVER__ ipv6=off valid=5s;
+    resolver_timeout 2s;
+
+    lua_shared_dict routes 1m;
+    lua_shared_dict limit_store 1m;
+
+    server {
+        listen 80;
+        server_name _;
+
+        # Vue SPA built by apps/web (mounted at runtime by docker compose)
+        location / {
+            root  /usr/share/nginx/html;
+            index index.html;
+            try_files $uri $uri/ /index.html;
+        }
+
+        location /api/ {
+            set $x_user "";
+            set $api_upstream "";
+
+            access_by_lua_file lua/gateway.lua;
+
+            # strip the /api prefix before proxying (routes in user.api are prefix-free)
+            rewrite ^/api/(.*)$ /$1 break;
+
+            proxy_http_version 1.1;
+            proxy_set_header Connection "";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-User $x_user;
+
+            # host:port target chosen by lua/router.lua (Redis override or
+            # USER_API_UPSTREAM default), resolved via the resolver above
+            proxy_pass http://$api_upstream;
+        }
+    }
+}

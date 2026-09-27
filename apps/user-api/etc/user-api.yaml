@@ -1,0 +1,11 @@
+Name: user-api
+Host: 0.0.0.0
+Port: 8888
+
+Auth:
+  # Overridden by the JWT_SECRET environment variable (see user.go);
+  # must match the gateway's JWT_SECRET.
+  JwtSecret: "dev-only-jwt-secret-change-me"
+  JwtExpireHours: 24
+  DemoUsername: admin
+  DemoPassword: admin123

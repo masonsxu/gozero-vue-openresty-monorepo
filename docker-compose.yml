@@ -1,0 +1,28 @@
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+  user-api:
+    build: ./apps/user-api
+    environment:
+      JWT_SECRET: ${JWT_SECRET:-dev-only-jwt-secret-change-me}
+    expose:
+      - "8888"
+    restart: unless-stopped
+
+  gateway:
+    build: ./apps/gateway
+    ports:
+      - "8080:80"
+    environment:
+      JWT_SECRET: ${JWT_SECRET:-dev-only-jwt-secret-change-me}
+      REDIS_HOST: redis
+      USER_API_UPSTREAM: user-api:8888
+    volumes:
+      # the gateway serves the SPA built by `pnpm build:web`
+      - ./apps/web/dist:/usr/share/nginx/html:ro
+    depends_on:
+      - user-api
+      - redis
+    restart: unless-stopped

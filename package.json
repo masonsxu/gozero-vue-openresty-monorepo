@@ -1,0 +1,16 @@
+{
+  "name": "gozero-vue-openresty-monorepo",
+  "private": true,
+  "packageManager": "pnpm@9.15.9",
+  "scripts": {
+    "dev": "pnpm --filter @gozero-monorepo/web dev",
+    "build": "turbo run build",
+    "build:web": "pnpm --filter @gozero-monorepo/web build",
+    "generate:api": "goctl api go -api apps/user-api/user.api -dir apps/user-api --style goZero && goctl api ts --api apps/user-api/user.api --dir packages/api-client/src/generated --unwrap",
+    "up": "podman compose up -d --build",
+    "down": "podman compose down"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.3"
+  }
+}

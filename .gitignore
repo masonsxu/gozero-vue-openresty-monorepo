@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.turbo/
+*.tsbuildinfo
+
+apps/user-api/user-api
+apps/user-api/vendor/
+
+.env
+.env.local
+*.local
+
+.DS_Store

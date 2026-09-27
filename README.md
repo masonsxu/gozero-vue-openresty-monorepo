@@ -9,28 +9,11 @@ Go-zero + Vue 3 + OpenResty 的 Monorepo 工程模板:契约先行的前后端�
 
 ## 架构
 
-交互版架构图（主题切换、聚焦视图、PNG/SVG 导出）：[docs/architecture.html](docs/architecture.html)（规格源文件 [docs/architecture.json](docs/architecture.json)）
+![架构图](docs/architecture.png)
 
-```text
-浏览器
-  │
-  ▼
-OpenResty 网关 :8080
-  ├── location /            Vue SPA 静态托管,try_files 兜底 history 路由
-  └── location /api/
-        ├── access_by_lua   1) 每 IP 漏桶限流(10 req/s, burst 20)
-        │                   2) JWT 验签(HS256,白名单路径跳过)
-        │                   3) 路由解析(Redis 覆盖 > 环境变量默认)
-        ├── rewrite         剥离 /api 前缀
-        └── proxy_pass      http://$api_upstream(按 DNS TTL 解析)
-                │
-                ▼
-        go-zero user-api :8888
-        ├── POST /auth/login   校验凭据,签发 JWT(24h)
-        └── GET  /user/info    读取网关注入的 X-User
-```
+职责边界：业务逻辑全部在 go-zero 服务；网关只做流量管理（限流、鉴权、路由、静态托管），不含业务代码。
 
-职责边界:业务逻辑全部在 go-zero 服务;网关只做流量管理(限流、鉴权、路由、静态托管),不含业务代码。
+> 交互版（主题切换、聚焦视图、PNG/SVG 导出）：[docs/architecture.html](docs/architecture.html)，规格源文件 [docs/architecture.json](docs/architecture.json)
 
 ### 一次典型请求的完整链路
 

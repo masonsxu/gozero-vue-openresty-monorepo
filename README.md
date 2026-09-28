@@ -2,8 +2,8 @@
 
 Go-zero + Vue 3 + OpenResty 的 Monorepo 工程模板:契约先行的前后端协作、网关层统一鉴权/限流/动态路由、容器一键启动。
 
-- 前端:Vue 3 + Vite + TypeScript + vue-router(pnpm workspace 管理)
-- 后端:go-zero REST 服务(`.api` 契约驱动,goctl 生成)
+- 前端:Vue 3 + Vite + TypeScript + vue-router + ECharts(pnpm workspace 管理)
+- 后端:go-zero REST 服务(`.api` 契约驱动,goctl 生成)+ forecast-api(FastAPI + PyTorch,CNN+Transformer 时序预测/耦合失效检测)
 - 网关:OpenResty(Lua 实现 JWT 验签、漏桶限流、Redis 动态路由)
 - 构建:Turborepo 任务编排;容器:podman compose / docker compose
 
@@ -11,7 +11,7 @@ Go-zero + Vue 3 + OpenResty 的 Monorepo 工程模板:契约先行的前后端�
 
 ![架构图](docs/architecture.png)
 
-职责边界：业务逻辑全部在 go-zero 服务；网关只做流量管理（限流、鉴权、路由、静态托管），不含业务代码。
+职责边界：业务逻辑在业务服务（go-zero user-api / Python forecast-api）；网关只做流量管理（限流、鉴权、路由、静态托管），不含业务代码。forecast-api 是 ML 服务的例外说明：模型训练/推理依赖 PyTorch 生态，用 Python 实现并复用网关的鉴权与路由（信任网关注入的 `X-User`，直连时兜底校验 Bearer）。
 
 > 交互版（主题切换、聚焦视图、PNG/SVG 导出）：[docs/architecture.html](docs/architecture.html)，规格源文件 [docs/architecture.json](docs/architecture.json)
 
@@ -36,21 +36,30 @@ Go-zero + Vue 3 + OpenResty 的 Monorepo 工程模板:契约先行的前后端�
 │   │   ├── conf/nginx.conf.template   resolver 占位符由 entrypoint 注入
 │   │   ├── docker-entrypoint.sh       从 /etc/resolv.conf 提取 DNS 生成 nginx.conf
 │   │   ├── lua/
-│   │   │   ├── gateway.lua     access 阶段入口:限流→验签→路由
+│   │   │   ├── gateway.lua     access 阶段入口:限流→验签→路由(按前缀分发到 user-api / forecast-api)
 │   │   │   ├── jwt.lua         HS256 验签(FFI 直调 OpenSSL HMAC,零第三方依赖)
 │   │   │   ├── auth.lua        Bearer token 解析 + secret 管理
 │   │   │   ├── ratelimit.lua   漏桶限流(resty.limit.req)
 │   │   │   └── router.lua      Redis 路由表读取(5s 缓存,失败回退默认)
 │   │   └── vendor/resty/limit/ 纯 Lua 依赖源码(license 见文件头)
+│   ├── forecast-api/          CNN+Transformer 时序预测服务(Python FastAPI + PyTorch)
+│   │   ├── app/
+│   │   │   ├── ml/             与参考分析逐句等价的移植(univariate/multivariate 管线)
+│   │   │   ├── jobs.py         内存 job 管理(后台线程训练,最近 20 个)
+│   │   │   ├── comparison.py   与参考 metrics 的容差比对
+│   │   │   └── main.py         REST 路由(/forecast/*,信任 X-User)
+│   │   ├── reference/          参考分析产出的基准 metrics(比对照实源)
+│   │   └── tests/              pytest:API 集成 + 慢速 parity 测试(-m slow)
 │   └── user-api/               go-zero 服务
 │       ├── user.api            API 契约(唯一事实源)
 │       ├── etc/user-api.yaml   监听地址、JWT secret、演示凭据
 │       └── internal/           handler(请求解析)/ logic(业务)/ types(生成)
 ├── packages/
 │   ├── api-client/             契约生成的 TS 类型 + fetch 封装
-│   │   └── src/generated/      goctl api ts 产物(勿手改)
+│   │   ├── src/generated/      goctl api ts 产物(勿手改)
+│   │   └── src/forecast.ts     forecast-api 的手写类型与封装
 │   └── shared-utils/           前端通用工具函数
-├── docker-compose.yml          redis + user-api + gateway
+├── docker-compose.yml          redis + user-api + forecast-api + gateway
 ├── pnpm-workspace.yaml
 └── turbo.json
 ```
@@ -75,7 +84,7 @@ Go-zero + Vue 3 + OpenResty 的 Monorepo 工程模板:契约先行的前后端�
 pnpm install
 pnpm build:web
 
-# 2. 启动全部容器(redis / user-api / gateway)
+# 2. 启动全部容器(redis / user-api / forecast-api / gateway)
 podman compose up -d --build
 # docker 用户:docker compose up -d --build
 
@@ -83,11 +92,16 @@ podman compose up -d --build
 curl -i http://localhost:8080/api/user/ping
 ```
 
-podman machine 用户需先指向 podman socket(machine start 输出的那个):
+关于 macOS 上的 podman machine:
+
+- `podman compose`(实测 podman 6.0.2)会自动把 machine 连接注入给 compose provider(docker-compose),无需设置任何环境变量
+- 仅当绕过 `podman compose` 直接使用 `docker-compose` 命令时,才需要把 `DOCKER_HOST` 指向 machine 的 API socket(默认在 `$TMPDIR/podman/podman-machine-default-api.sock`,rootless machine 的默认位置):
 
 ```bash
 export DOCKER_HOST="unix://${TMPDIR}podman/podman-machine-default-api.sock"
 ```
+
+该 socket 路径与镜像/卷存储位置无关(存储在 machine 虚拟机内,`podman info` 的 `graphRoot` 可见)。
 
 查看日志与状态:
 
@@ -95,11 +109,46 @@ export DOCKER_HOST="unix://${TMPDIR}podman/podman-machine-default-api.sock"
 podman compose ps
 podman logs gozero-vue-openresty-monorepo-gateway-1
 podman logs gozero-vue-openresty-monorepo-user-api-1
+podman logs gozero-vue-openresty-monorepo-forecast-api-1
 ```
 
 ## 验证手册
 
 演示凭据:`admin / admin123`。以下命令均在本仓库实测通过。
+
+### 0. 时序预测系统(forecast)
+
+前端:`open http://localhost:8080/forecast`(登录后):
+
+1. 「单变量时序预测」:默认 epochs=20 运行,展示指标卡、模型 vs 持久性基线回归指标、
+   原始序列/损失曲线/预测对比/残差分布/散点 5 张图,以及与参考分析指标的逐项容差比对表
+2. 「多变量耦合失效检测」:默认 epochs=30,顺序训练 phase_swap / actuator_lag
+   两模式各 3 个模型(多变量/单变量/单变量)+ EWMA 基线,展示方法对照表、
+   通道/评分/EWMA/耦合散点 4 张图与比对表;任务可轮询进度、从历史恢复
+
+API(经网关鉴权):
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"admin","password":"admin123"}' | python3 -c "import sys,json;print(json.load(sys.stdin)['token'])")
+
+# 提交单变量实验(epochs 缺省 20,与参考一致)
+curl -s -X POST http://localhost:8080/api/forecast/jobs \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"kind":"univariate"}'
+# 轮询状态与结果(GET /forecast/jobs/{id},完成后 result 含指标、图表数据与参考比对)
+curl -s -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/forecast/jobs/<id>
+```
+
+一致性验证(本机实测):
+
+- 单变量:persistence 基线与残差统计与参考逐位一致;模型指标在容差内
+  (容器内 torch 为 cu130 构建,与宿主构建存在微小浮点漂移)
+- 多变量:corr/b_marginal 与参考逐位一致;报警率/检出延迟在容差内,
+  定性结论不变(多变量模型在两种故障模式下均能检出,单变量/EWMA 在
+  actuator_lag 模式下接近全盲)
+- 本地全量 parity 测试:`cd apps/forecast-api && uv run pytest -m slow`
 
 ### 1. 静态托管与 history 路由
 
@@ -182,7 +231,7 @@ sleep 6
 curl -i http://localhost:8080/api/user/ping
 ```
 
-路由表结构:Redis hash `gateway:routes`,field 为服务名,value 为 `host:port`。
+路由表结构:Redis hash `gateway:routes`,field 为服务名(`user-api` / `forecast-api`),value 为 `host:port`。
 
 ### 7. 后端重启自愈
 
@@ -231,15 +280,16 @@ pnpm generate:api
 
 ### 新增后端服务
 
-在 `apps/` 下新建目录,重复 user-api 的结构;网关侧复制一个 `location /api/<svc>/` 块并在 `router.lua`/环境变量中注册默认 upstream,Redis `gateway:routes` 的 field 与服务名对应。
+在 `apps/` 下新建目录,重复 user-api 的结构;网关侧在 `gateway.lua` 的服务分发中注册前缀,并在 `router.lua` 的 `DEFAULT_UPSTREAMS` 与环境变量中注册默认 upstream,Redis `gateway:routes` 的 field 与服务名对应。forecast-api(Python/FastAPI)是现成的非 go-zero 服务接入范例。
 
 ## 配置参考
 
 | 变量 | 作用域 | 默认值 | 说明 |
 |---|---|---|---|
-| `JWT_SECRET` | user-api / gateway | `dev-only-jwt-secret-change-me` | 两端必须一致;生产环境务必覆盖 |
+| `JWT_SECRET` | user-api / gateway / forecast-api | `dev-only-jwt-secret-change-me` | 各端必须一致;生产环境务必覆盖 |
 | `REDIS_HOST` | gateway | `redis` | 动态路由的 Redis 地址 |
 | `USER_API_UPSTREAM` | gateway | `user-api:8888` | 无 Redis 覆盖时的默认 upstream |
+| `FORECAST_API_UPSTREAM` | gateway | `forecast-api:8000` | forecast-api 的默认 upstream |
 
 演示凭据(`admin/admin123`)配置在 `apps/user-api/etc/user-api.yaml`,接入数据库后替换 loginLogic 中的校验逻辑。
 
@@ -249,8 +299,9 @@ pnpm generate:api
 - `JwtSecret` 通过 compose 明文传递,生产应换用 secret 管理系统
 - Redis 动态路由无认证,Redis 需限制网络访问
 - 限流维度仅按客户端 IP(podman/docker 环境下所有请求来自转发层同一 IP)
+- forecast-api 的 job 存内存(重启丢失,保留最近 20 个);模型每次训练现训,无持久化权重
 - goctl 生成的 `gocliRequest.ts` 未被使用,api-client 自带 fetch 封装以支持 baseUrl 与 token 注入
 
 ## CI
 
-`.github/workflows/ci.yml`:push/PR 触发两个并行 job——web(pnpm install + turbo build,含 vue-tsc 类型检查)与 user-api(`go build` + `go vet`)。
+`.github/workflows/ci.yml`:push/PR 触发三个并行 job——web(pnpm install + turbo build,含 vue-tsc 类型检查)、user-api(`go build` + `go vet`)与 forecast-api(`uv sync` + `ruff check` + pytest 快速集;全量 parity 测试 `-m slow` 仅本地跑)。

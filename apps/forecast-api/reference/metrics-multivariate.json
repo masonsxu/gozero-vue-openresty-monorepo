@@ -1,0 +1,103 @@
+{
+  "benign_start": 3400,
+  "fault_onset": 3700,
+  "ramp": 100,
+  "lag_max": 6,
+  "train_targets": 2370,
+  "val_targets": 1000,
+  "benign_targets": 300,
+  "fault_targets": 300,
+  "threshold_quantile": 0.995,
+  "modes": {
+    "phase_swap": {
+      "b_marginal": {
+        "pre_mean": 0.0008,
+        "post_mean": -0.0578,
+        "pre_std": 0.8382,
+        "post_std": 0.8566
+      },
+      "corr_a_b": {
+        "train": 0.8581,
+        "benign": 0.8573,
+        "post_onset": -0.0696
+      },
+      "methods": {
+        "mv": {
+          "val_alarm_rate": 0.005,
+          "benign_alarm_rate": 0.09,
+          "fault_alarm_rate": 0.8133,
+          "detection_delay": 55
+        },
+        "uv_b": {
+          "val_alarm_rate": 0.005,
+          "benign_alarm_rate": 0.0267,
+          "fault_alarm_rate": 0.8167,
+          "detection_delay": 54
+        },
+        "uv_a": {
+          "val_alarm_rate": 0.005,
+          "benign_alarm_rate": 0.01,
+          "fault_alarm_rate": 0.0,
+          "detection_delay": null
+        },
+        "ewma_a": {
+          "val_alarm_rate": 0.005,
+          "benign_alarm_rate": 0.0033,
+          "fault_alarm_rate": 0.0,
+          "detection_delay": null
+        },
+        "ewma_b": {
+          "val_alarm_rate": 0.005,
+          "benign_alarm_rate": 0.01,
+          "fault_alarm_rate": 0.0133,
+          "detection_delay": 147
+        }
+      }
+    },
+    "actuator_lag": {
+      "b_marginal": {
+        "pre_mean": 0.0013,
+        "post_mean": 0.0585,
+        "pre_std": 0.8343,
+        "post_std": 0.8481
+      },
+      "corr_a_b": {
+        "train": 0.8587,
+        "benign": 0.86,
+        "post_onset": 0.6122
+      },
+      "methods": {
+        "mv": {
+          "val_alarm_rate": 0.005,
+          "benign_alarm_rate": 0.0333,
+          "fault_alarm_rate": 0.63,
+          "detection_delay": 110
+        },
+        "uv_b": {
+          "val_alarm_rate": 0.005,
+          "benign_alarm_rate": 0.0767,
+          "fault_alarm_rate": 0.2467,
+          "detection_delay": 140
+        },
+        "uv_a": {
+          "val_alarm_rate": 0.005,
+          "benign_alarm_rate": 0.1267,
+          "fault_alarm_rate": 0.0,
+          "detection_delay": null
+        },
+        "ewma_a": {
+          "val_alarm_rate": 0.005,
+          "benign_alarm_rate": 0.01,
+          "fault_alarm_rate": 0.0067,
+          "detection_delay": 96
+        },
+        "ewma_b": {
+          "val_alarm_rate": 0.005,
+          "benign_alarm_rate": 0.0067,
+          "fault_alarm_rate": 0.0133,
+          "detection_delay": 5
+        }
+      }
+    }
+  }
+}

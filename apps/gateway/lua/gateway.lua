@@ -8,6 +8,7 @@ local router = require "lua.router"
 local PUBLIC_PATHS = {
     ["/auth/login"] = true,
     ["/user/ping"] = true,
+    ["/forecast/health"] = true,
 }
 
 local function respond(status, message)
@@ -31,9 +32,15 @@ if not PUBLIC_PATHS[ngx.var.uri] then
     ngx.var.x_user = claims.sub or ""
 end
 
-local ok, upstream = pcall(router.resolve, "user-api")
+-- Route by service prefix: /forecast/* -> forecast-api, the rest -> user-api
+local service = "user-api"
+if ngx.var.uri:find("^/forecast/") or ngx.var.uri == "/forecast" then
+    service = "forecast-api"
+end
+
+local ok, upstream = pcall(router.resolve, service)
 if ok and upstream then
     ngx.var.api_upstream = upstream
 else
-    ngx.var.api_upstream = router.default_upstream()
+    ngx.var.api_upstream = router.default_upstream(service)
 end

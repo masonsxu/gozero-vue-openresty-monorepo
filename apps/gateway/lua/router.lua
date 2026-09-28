@@ -12,8 +12,17 @@ local REDIS_PORT = 6379
 
 local _M = {}
 
-function _M.default_upstream()
-    return os.getenv("USER_API_UPSTREAM") or "user-api:8888"
+local DEFAULT_UPSTREAMS = {
+    ["user-api"] = { env = "USER_API_UPSTREAM", fallback = "user-api:8888" },
+    ["forecast-api"] = { env = "FORECAST_API_UPSTREAM", fallback = "forecast-api:8000" },
+}
+
+function _M.default_upstream(service)
+    local def = DEFAULT_UPSTREAMS[service]
+    if not def then
+        return nil
+    end
+    return os.getenv(def.env) or def.fallback
 end
 
 local function fetch_upstream(service)

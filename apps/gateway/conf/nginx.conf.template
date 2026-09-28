@@ -7,6 +7,7 @@ pid /tmp/openresty.pid;
 env JWT_SECRET;
 env REDIS_HOST;
 env USER_API_UPSTREAM;
+env FORECAST_API_UPSTREAM;
 
 events {
     worker_connections 1024;

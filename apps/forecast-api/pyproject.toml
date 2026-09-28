@@ -1,0 +1,36 @@
+[project]
+name = "forecast-api"
+version = "0.1.0"
+description = "CNN+Transformer 时间序列预测与多变量耦合失效检测服务（gozero-vue-openresty-monorepo）"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.115",
+    "numpy==2.5.3",
+    "scikit-learn==1.9.1",
+    "torch==2.14.0",
+    "uvicorn>=0.34",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28",
+    "pytest>=8",
+    "ruff>=0.8",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+ignore = [
+    "PLR0402", # `import torch.nn as nn` 是 PyTorch 生态惯用写法，且与参考实现保持一致
+]
+
+[tool.pytest.ini_options]
+markers = [
+    "slow: full-epoch parity tests (~3 min CPU); run with -m slow",
+]

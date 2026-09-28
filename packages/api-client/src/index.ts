@@ -4,6 +4,7 @@ import type { LoginReq, LoginResp, UserInfoResp } from './generated/userComponen
 export { ApiError, configureClient } from './client'
 export type { ClientOptions } from './client'
 export type { LoginReq, LoginResp, UserInfoResp } from './generated/userComponents'
+export * from './forecast'
 
 // Route paths mirror the .api contract; the gateway strips the /api prefix
 // before proxying to user-api.

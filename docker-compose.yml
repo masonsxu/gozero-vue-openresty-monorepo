@@ -11,6 +11,14 @@ services:
       - "8888"
     restart: unless-stopped
 
+  forecast-api:
+    build: ./apps/forecast-api
+    environment:
+      JWT_SECRET: ${JWT_SECRET:-dev-only-jwt-secret-change-me}
+    expose:
+      - "8000"
+    restart: unless-stopped
+
   gateway:
     build: ./apps/gateway
     ports:
@@ -19,10 +27,12 @@ services:
       JWT_SECRET: ${JWT_SECRET:-dev-only-jwt-secret-change-me}
       REDIS_HOST: redis
       USER_API_UPSTREAM: user-api:8888
+      FORECAST_API_UPSTREAM: forecast-api:8000
     volumes:
       # the gateway serves the SPA built by `pnpm build:web`
       - ./apps/web/dist:/usr/share/nginx/html:ro
     depends_on:
       - user-api
+      - forecast-api
       - redis
     restart: unless-stopped

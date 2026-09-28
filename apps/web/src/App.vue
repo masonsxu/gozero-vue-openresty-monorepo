@@ -6,6 +6,7 @@
     <span class="brand">gozero monorepo</span>
     <nav>
       <RouterLink to="/">Home</RouterLink>
+      <RouterLink to="/forecast">Forecast</RouterLink>
       <RouterLink to="/about">About</RouterLink>
     </nav>
   </header>
@@ -45,7 +46,7 @@ body {
   color: #fff;
 }
 .page {
-  max-width: 720px;
+  max-width: 1280px;
   margin: 32px auto;
   padding: 0 16px;
 }

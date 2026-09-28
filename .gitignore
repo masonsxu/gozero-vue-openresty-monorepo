@@ -11,3 +11,12 @@ apps/user-api/vendor/
 *.local
 
 .DS_Store
+.playwright-cli/
+
+# forecast-api (Python)
+apps/forecast-api/.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+nohup.out

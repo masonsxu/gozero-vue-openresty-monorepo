@@ -1,0 +1,24 @@
+{
+  "device": "cpu",
+  "seed": 42,
+  "params": 74401,
+  "train_samples": 1576,
+  "test_samples": 394,
+  "train_mse_scaled": 0.026656,
+  "test_mse_scaled": 0.132371,
+  "train_seconds": 7.35,
+  "model_inverse": {
+    "MAE": 0.9283,
+    "RMSE": 1.1869,
+    "R2": 0.2864
+  },
+  "persistence_inverse": {
+    "MAE": 0.4554,
+    "RMSE": 0.5759,
+    "R2": 0.832
+  },
+  "residual": {
+    "mean": 0.869,
+    "std": 0.8085
+  }
+}
